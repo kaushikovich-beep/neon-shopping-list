@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>🎄 Neon Planner Pro</title>
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f0c29">
+    
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3523/3523887.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3523/3523887.png">
+
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Neon%20Planner%22,%22short_name%22:%22Neon%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22#0f0c29%22,%22theme_color%22:%22#ffd700%22,%22icons%22:[{%22src%22:%22https://cdn-icons-png.flaticon.com/512/3523/3523887.png%22,%22sizes%22:%22512x512%22,%22type%22:%22image/png%22}]}">
+
+    <style>
+        :root { 
+            --gold: #ffd700; --green: #32cd32; --red: #c41e3a; 
+            --bg: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            --card-bg: rgba(255, 255, 255, 0.07); --text: #fff;
+        }
+        
+        body.light-theme {
+            --bg: linear-gradient(135deg, #e0eafc, #cfdef3);
+            --card-bg: rgba(0, 0, 0, 0.05); --text: #24243e;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg); color: var(--text);
+            margin: 0; padding: 10px; min-height: 100vh; transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+        }
+
+        .container { max-width: 800px; margin: 10px auto; position: relative; }
+
+        .top-bar { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .icon-btn { 
+            background: var(--card-bg); border: 1px solid var(--gold); border-radius: 50%; 
+            width: 45px; height: 45px; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center;
+        }
+
+        .tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
+        .tab-btn {
+            padding: 10px 15px; border-radius: 20px; border: 1px solid var(--gold);
+            background: var(--card-bg); color: var(--text); font-weight: bold; cursor: pointer;
+        }
+        .tab-btn.active { background: var(--gold); color: #000; box-shadow: 0 0 15px var(--gold); }
+
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* Оболочка для списка и боковых кнопок */
+        .list-wrapper {
+            display: flex; align-items: stretch; gap: 8px; margin-bottom: 10px;
+        }
+
+        .move-btn {
+            width: 40px; background: var(--card-bg); border: 1px solid var(--gold);
+            border-radius: 10px; color: var(--gold); font-size: 24px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+/* Исправленный контейнер списка */
+#list-container {
+    flex: 1; 
+    border: 2px solid var(--green); 
+    border-radius: 12px; 
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.2); 
+    height: 65vh; 
+    overflow-y: auto; 
+    overflow-x: auto; /* Возвращаем горизонтальную прокрутку */
+    scrollbar-width: thin;
+}
+
+.item-row { 
+    display: flex; 
+    background: var(--card-bg); 
+    margin-bottom: 8px; 
+    border-radius: 10px; 
+    transition: transform 0.2s;
+    /* Умная ширина: */
+    width: 100%;             /* Пытаемся занять всё место */
+    min-width: fit-content;  /* Но не сжимаемся меньше текста внутри */
+    box-sizing: border-box;  /* Чтобы рамки не вылезали за края */
+}
+
+/* Добавим еще правку для row-content, чтобы она растягивала элементы внутри */
+.row-content { 
+    display: flex; 
+    align-items: center; 
+    width: 100%;             /* Растягиваем контент на всю ширину строки */
+    padding: 6px; 
+    gap: 6px; 
+}
+        
+        .item-row textarea { 
+            flex: 2; min-width: 120px; min-height: 35px; border-radius: 6px; padding: 6px; 
+            font-size: 14px; border: none; resize: none; background: transparent; color: inherit;
+        }
+        .price-input { width: 60px; padding: 6px 2px; border-radius: 6px; border: none; font-weight: bold; text-align: center; background: rgba(255,255,255,0.1); color: inherit; }
+        .del-btn { background: var(--red); color: white; border: none; border-radius: 6px; padding: 6px 10px; font-weight: bold; }
+
+        .item-row.is-checked { background: rgba(50, 205, 50, 0.2); border: 1px solid var(--green); }
+        .shopping-mode-active .item-row.is-checked { display: none; }
+
+        #totals-container {
+            padding: 12px; background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px; border: 2px dashed var(--gold); text-align: right; font-size: 0.9em;
+        }
+
+        .cards-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-item {
+            position: relative; aspect-ratio: 3/2; background: var(--card-bg);
+            border: 1px solid var(--gold); border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+        .card-item img { width: 100%; height: 100%; object-fit: cover; }
+        .card-controls { position: absolute; top: 4px; right: 4px; display: flex; gap: 4px; }
+        .mini-btn { width: 26px; height: 26px; border-radius: 50%; border: none; color: white; font-size: 12px; cursor: pointer; }
+
+        #viewer {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center;
+        }
+        #viewer img { max-width: 95%; max-height: 95%; }
+
+        .backup-zone { display: flex; justify-content: center; gap: 8px; margin-top: 15px; }
+        .small-btn { font-size: 10px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--gold); background: var(--card-bg); color: var(--text); cursor: pointer; }
+
+        #add-button, #add-card-btn {
+            display: block; width: 100%; max-width: 250px; margin: 15px auto;
+            padding: 14px; background: linear-gradient(var(--green), #1e5d3a);
+            color: white; border: none; border-radius: 15px; font-weight: bold; cursor: pointer;
+        }
+    </style>
+</head>
+<body class="dark-theme">
+
+<div class="container">
+    <div class="top-bar">
+        <button class="icon-btn" onclick="toggleTheme()">🌗</button>
+        <button class="icon-btn" id="shop-mode-btn" onclick="toggleShoppingMode()">⚡</button>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" id="tab-list" onclick="switchTab('planner')">📝 Список</button>
+        <button class="tab-btn" id="tab-cards" onclick="switchTab('cards')">💳 Карты</button>
+    </div>
+
+    <div id="planner" class="section active">
+        <div class="list-wrapper">
+            <button class="move-btn" onclick="moveItems('up')">↑</button>
+            <div id="list-container"></div>
+            <button class="move-btn" onclick="moveItems('down')">↓</button>
+        </div>
+
+        <div id="totals-container">
+            <div>💰 Итого: <strong><span id="total-sum">0.00</span> ₽</strong></div>
+            <div style="color:var(--green)">🎁 Куплено: <strong><span id="paid-sum">0.00</span> ₽</strong></div>
+        </div>
+        <button id="add-button">❄️ Добавить покупку</button>
+    </div>
+
+    <div id="cards" class="section">
+        <div class="cards-grid" id="cards-grid"></div>
+        <button id="add-card-btn">➕ Добавить карту</button>
+    </div>
+
+    <div class="backup-zone">
+        <button class="small-btn" onclick="exportBackup()">💾 Бэкап</button>
+        <button class="small-btn" onclick="document.getElementById('import-file').click()">📂 Восстановить</button>
+        <input type="file" id="import-file" style="display:none" accept=".json" onchange="importBackup(this)">
+    </div>
+</div>
+
+<div id="viewer" onclick="closeViewer()"><img id="viewer-img"></div>
+<input type="file" id="card-upload" style="display:none" accept="image/*" onchange="processImage(this)">
+
+<script>
+    let isShoppingMode = false;
+    let wakeLock = null;
+    let currentSlot = null;
+
+    // --- ФУНКЦИИ ПЕРЕМЕЩЕНИЯ ---
+    function moveItems(direction) {
+        const container = document.getElementById('list-container');
+        const rows = Array.from(container.querySelectorAll('.item-row'));
+        const checkedRows = rows.filter(row => row.querySelector('input[type="checkbox"]').checked);
+
+        if (checkedRows.length === 0) return;
+
+        if (direction === 'up') {
+            checkedRows.forEach(row => {
+                const prev = row.previousElementSibling;
+                if (prev) container.insertBefore(row, prev);
+            });
+        } else {
+            checkedRows.reverse().forEach(row => {
+                const next = row.nextElementSibling;
+                if (next) container.insertBefore(row, next.nextElementSibling);
+            });
+        }
+        saveItems();
+    }
+
+    function processImage(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width, height = img.height;
+                    const MAX_WIDTH = 800;
+                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    canvas.width = width; canvas.height = height;
+                    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                    renderCardSlot(currentSlot, canvas.toDataURL('image/jpeg', 0.6)); 
+                    saveCards();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function toggleTheme() {
+        document.body.classList.toggle('light-theme');
+        localStorage.setItem('neon-theme', document.body.classList.contains('light-theme'));
+    }
+
+    async function toggleShoppingMode() {
+        isShoppingMode = !isShoppingMode;
+        document.querySelector('.container').classList.toggle('shopping-mode-active');
+        document.getElementById('shop-mode-btn').style.boxShadow = isShoppingMode ? "0 0 15px var(--gold)" : "none";
+        if (isShoppingMode && 'wakeLock' in navigator) {
+            try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e){}
+        } else if (wakeLock) { wakeLock.release(); wakeLock = null; }
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        document.getElementById('tab-' + (tabId === 'planner' ? 'list' : 'cards')).classList.add('active');
+    }
+
+    function saveItems() {
+        const items = [];
+        document.querySelectorAll('.item-row').forEach(row => {
+            items.push({ 
+                text: row.querySelector('textarea').value, 
+                checked: row.querySelector('input[type="checkbox"]').checked, 
+                price: row.querySelector('.price-input').value 
+            });
+        });
+        localStorage.setItem('neon-data-v7', JSON.stringify(items));
+        updateTotals();
+    }
+
+    function updateTotals() {
+        let total = 0, paid = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+            const price = parseFloat(row.querySelector('.price-input').value) || 0;
+            const isChecked = row.querySelector('input[type="checkbox"]').checked;
+            row.classList.toggle('is-checked', isChecked);
+            total += price; if (isChecked) paid += price;
+        });
+        document.getElementById('total-sum').textContent = total.toFixed(2);
+        document.getElementById('paid-sum').textContent = paid.toFixed(2);
+    }
+
+    function addItem(text = '', checked = false, price = '') {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `<div class="row-content">
+            <input type="checkbox" ${checked ? 'checked' : ''} onchange="saveItems()">
+            <textarea placeholder="Название..." oninput="saveItems()">${text}</textarea>
+            <input type="number" class="price-input" placeholder="0" value="${price}" oninput="saveItems()">
+            <button class="del-btn" onclick="this.closest('.item-row').remove();saveItems()">✕</button>
+        </div>`;
+        document.getElementById('list-container').appendChild(row);
+        if(checked) row.classList.add('is-checked');
+        updateTotals();
+    }
+
+    function saveCards() {
+        const cards = [];
+        document.querySelectorAll('.card-item img').forEach(img => cards.push(img.src));
+        localStorage.setItem('neon-cards-v7', JSON.stringify(cards));
+    }
+
+    function renderCardSlot(slot, imgSrc = null) {
+        if (imgSrc) {
+            slot.innerHTML = `<img src="${imgSrc}"><div class="card-controls">
+                <button class="mini-btn" style="background:var(--gold);color:#000" onclick="event.stopPropagation(); currentSlot=this.closest('.card-item'); document.getElementById('card-upload').click()">✎</button>
+                <button class="mini-btn" style="background:var(--red)" onclick="event.stopPropagation(); this.closest('.card-item').remove(); saveCards();">✕</button>
+            </div>`;
+        } else {
+            slot.innerHTML = `<span style="font-size:10px;color:var(--gold)">+ КАРТА</span>`;
+        }
+    }
+
+    function addCardSlot(imgSrc = null) {
+        const slot = document.createElement('div');
+        slot.className = 'card-item';
+        renderCardSlot(slot, imgSrc);
+        slot.onclick = () => {
+            const img = slot.querySelector('img');
+            if (img) {
+                document.getElementById('viewer-img').src = img.src;
+                document.getElementById('viewer').style.display = 'flex';
+                history.pushState({viewingCard: true}, "");
+            } else { currentSlot = slot; document.getElementById('card-upload').click(); }
+        };
+        document.getElementById('cards-grid').appendChild(slot);
+    }
+
+    function closeViewer() { document.getElementById('viewer').style.display = 'none'; if (history.state?.viewingCard) history.back(); }
+    window.onpopstate = () => { document.getElementById('viewer').style.display = 'none'; };
+
+    function exportBackup() {
+        const data = { items: localStorage.getItem('neon-data-v7'), cards: localStorage.getItem('neon-cards-v7'), theme: localStorage.getItem('neon-theme') };
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], {type: 'application/json'}));
+        a.download = `neon_planner_v7.json`;
+        a.click();
+    }
+
+    function importBackup(input) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                localStorage.setItem('neon-data-v7', data.items || "[]");
+                localStorage.setItem('neon-cards-v7', data.cards || "[]");
+                localStorage.setItem('neon-theme', data.theme || "false");
+                loadAppData(); 
+            } catch(err) { alert("Ошибка!"); }
+        };
+        reader.readAsText(input.files[0]);
+    }
+
+    function loadAppData() {
+        document.getElementById('list-container').innerHTML = "";
+        document.getElementById('cards-grid').innerHTML = "";
+        if (localStorage.getItem('neon-theme') === 'true') document.body.classList.add('light-theme');
+        const savedData = localStorage.getItem('neon-data-v7');
+        if (savedData && savedData !== "[]") JSON.parse(savedData).forEach(i => addItem(i.text, i.checked, i.price)); 
+        else addItem();
+        const savedCards = localStorage.getItem('neon-cards-v7');
+        if (savedCards && savedCards !== "[]") JSON.parse(savedCards).forEach(src => addCardSlot(src)); 
+        else addCardSlot();
+        updateTotals();
+    }
+
+    window.onload = loadAppData;
+    document.getElementById('add-button').onclick = () => { addItem(); saveItems(); };
+    document.getElementById('add-card-btn').onclick = () => addCardSlot();
+</script>
+</body>
+</html>
